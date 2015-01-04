@@ -1,16 +1,18 @@
-//  Based on the code provided by Adafruit Industries:
+//  Based on the sample code provided by Adafruit Industries:
 //  https://github.com/adafruit/Adafruit-GPS-Library
 
 //This code is intended for use with Arduino Leonardo and other ATmega32U4-based Arduinos
 
 #include <Adafruit_GPS.h>
 #include <SoftwareSerial.h>
+#include <Wire.h>
+#include "RTClib.h"
 
 // Connect the GPS Power pin to 5V
 // Connect the GPS Ground pin to ground
 // Connect the GPS TX (transmit) pin to Arduino RX1 (Digital 8)
 // Connect the GPS RX (receive) pin to matching TX1 (Digital 7)
-w
+
 SoftwareSerial mySerial(8, 7);
 Adafruit_GPS GPS(&mySerial);
 
@@ -20,10 +22,13 @@ Adafruit_GPS GPS(&mySerial);
 
 int buttonPin = 5;
 int satDetectedLed = 4;
+RTC_DS1307 RTC;
 
 void setup()  
 {
-    
+  Wire.begin();
+  RTC.begin();
+  
   // connect at 115200 so we can read the GPS fast enough and echo without dropping chars
   // also spit it out
   Serial.begin(115200);
@@ -79,41 +84,55 @@ void loop()                     // run over and over again
   }
 
   // if millis() or timer wraps around, we'll just reset it
-//  if (timer > millis())  timer = millis();
+  if (timer > millis())  timer = millis();
 
-//    if (millis() - timer > 2000) { 
-//      timer = millis(); // reset the timer
-//      GetTime();
-//    }
-  
-  if(digitalRead(buttonPin) == 1){
-    digitalWrite(satDetectedLed, HIGH);
-  }
-  else
-  {
-    digitalWrite(satDetectedLed, LOW);
+  if (millis() - timer > 2000) { 
+      timer = millis(); // reset the timer
+      GetTime();
   }
 }
 
-void GetTime(){
-    
+void PrintRTCTime()
+{
+    DateTime now = RTC.now();
+  
+    Serial.print("\nTime: ");
+    Serial.print(now.hour(), DEC); Serial.print(':');
+    Serial.print(now.minute(), DEC); Serial.print(':');
+    Serial.print(now.second(), DEC); Serial.print(',');
+    Serial.print("Date: ");
+    Serial.print(now.day(), DEC); Serial.print('/');
+    Serial.print(now.month(), DEC); Serial.print("/");
+    Serial.println(now.year(), DEC);
+}
+
+void PrintGPSTime()
+{
     Serial.print("\nTime: ");
     Serial.print(GPS.hour, DEC); Serial.print(':');
     Serial.print(GPS.minute, DEC); Serial.print(':');
+    Serial.print(GPS.seconds, DEC); Serial.print(',');
     Serial.print("Date: ");
     Serial.print(GPS.day, DEC); Serial.print('/');
     Serial.print(GPS.month, DEC); Serial.print("/20");
     Serial.println(GPS.year, DEC);
     Serial.print("Fix: "); Serial.print((int)GPS.fix);
     Serial.print(" quality: "); Serial.println((int)GPS.fixquality); 
-    Serial.print("Satellites: "); Serial.println((int)GPS.satellites);
+    Serial.print("Satellites: "); Serial.println((int)GPS.satellites); 
+}
 
-//    if (GPS.satellites >= 1) 
-//    {
-//      digitalWrite(4, HIGH); 
-//    }
-//    else
-//    {
-//      digitalWrite(4, LOW); 
-//    }
+void GetTime()
+{
+    
+    if (GPS.year != 00) 
+    {
+      DateTime dt = RTC.now();
+      RTC.adjust(DateTime(GPS.year, GPS.month, GPS.day, GPS.hour, GPS.minute, GPS.seconds));
+      PrintRTCTime();
+      digitalWrite(satDetectedLed, HIGH); 
+    }
+    else
+    {
+      digitalWrite(satDetectedLed, LOW); 
+    }
 }
